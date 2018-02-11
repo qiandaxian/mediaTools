@@ -5,6 +5,10 @@ import os
 import os.path
 import Encode485Protocol
 import platform
+import json
+from xml.dom.minidom import parse
+import xml.dom.minidom
+
 
 medias = []
 lineDatas = []
@@ -82,39 +86,42 @@ class MediaPackageCheck:
     def deviceDirCheck(self,path):
         failMsgs = []
         result = "[pass]"
+        cicDirPath = path+os.sep+"cictec"
+        mediaDirPath = cicDirPath + os.sep + "media"
+        configDirPath = cicDirPath + os.sep + "config"
 
         #cictec文件夹校验
-        if( not os.path.exists(path+os.sep+"cictec")):
+        if( not os.path.exists(cicDirPath)):
             result = "[fail]"
-            failMsgs.append("[ERROR: %s，not exists!]" % (path+os.sep+"cictec"))
+            failMsgs.append("[ERROR: %s，not exists!]" % (cicDirPath))
         else:
             #author文件校验
-            result = self.authorCheck(result,(path + os.sep + "cictec" + os.sep + "author"),failMsgs)
+            result = self.authorCheck(result,(cicDirPath + os.sep + "author"),failMsgs)
 
             #media文件夹校验
-            if (not os.path.exists(path + os.sep+ "cictec" + os.sep + "media")):
+            if (not os.path.exists(mediaDirPath)):
                 result = "[fail]"
-                failMsgs.append("[ERROR: %s，not exists!]" % (path + os.sep+ "cictec" + os.sep + "media"))
+                failMsgs.append("[ERROR: %s，not exists!]" % (mediaDirPath))
             else:
                 #media.xml校验
-                result = self.mediaXmlCheck(result,(path + os.sep + "cictec" + os.sep + "media" + os.sep + "media.xml"),failMsgs)
+                result = self.mediaXmlCheck(result,(mediaDirPath + os.sep + "media.xml"),failMsgs,path.strip(os.path.basename(path)))
 
             #config文件夹校验
-            if (not os.path.exists(path + os.sep + "cictec"+os.sep+"config")):
+            if (not os.path.exists(configDirPath)):
                 result = "[fail]"
-                failMsgs.append("[ERROR: %s，not exists!]" % (path + os.sep + "cictec"+os.sep+"config"))
+                failMsgs.append("[ERROR: %s，not exists!]" % (configDirPath))
             else:
                 #configInfo.json校验
-                result = self.configInfoJsonCheck(result,(path + os.sep + "cictec" + os.sep + "config" + os.sep + "configInfo.json"),failMsgs)
+                result = self.configInfoJsonCheck(result,(configDirPath + os.sep + "configInfo.json"),failMsgs)
 
                 #control.xml校验
-                result = self.controlXmlCheck(result,(path + os.sep + "cictec" + os.sep + "config" + os.sep + "control.xml"),failMsgs)
+                result = self.controlXmlCheck(result,(configDirPath + os.sep + "control.xml"),failMsgs)
 
                 #lines.xml校验
-                result = self.linesXmlCheck(result,(path + os.sep + "cictec" + os.sep + "config" + os.sep + "lines.xml"),failMsgs)
+                result = self.linesXmlCheck(result,(configDirPath + os.sep + "lines.xml"),failMsgs)
 
                 #source.xml校验
-                result = self.sourceXmlCheck(result,(path + os.sep + "cictec" + os.sep + "config" + os.sep + "source.xml"),failMsgs)
+                result = self.sourceXmlCheck(result,(configDirPath + os.sep + "source.xml"),failMsgs)
 
         return result,failMsgs
 
@@ -141,9 +148,6 @@ class MediaPackageCheck:
 
         return result
 
-
-
-
     def sourceXmlCheck(self,result,path,failMsgs):
 
         if (not os.path.exists(path)):
@@ -159,14 +163,24 @@ class MediaPackageCheck:
 
     def configInfoJsonCheck(self,result,path,failMsgs):
 
-
         if (not os.path.exists(path)):
             result = "[fail]"
             failMsgs.append(
                 "[ERROR: %s，not exists!]" % path)
         else:
-            print()
-            # TODO
+            with open(path, 'r') as f:
+                data = json.load(f)
+
+                keys = ["cityId","ip","operationalType","port","protocol"]
+
+                for key in keys:
+                    if not key in data :
+                        result = "[fail]"
+                        failMsgs.append("﻿[ERROR: file: %s 中缺少字段:%s]" % (path,key))
+                    else:
+                        if(len(data[key])==0):
+                            result = "[fail]"
+                            failMsgs.append("﻿[ERROR: file: %s 中缺少字段:%s]" % (path, key))
         return result
 
 
@@ -177,8 +191,21 @@ class MediaPackageCheck:
             failMsgs.append(
                 "[ERROR: %s，not exists!]" % path)
         else:
-            print()
-            # TODO
+            DOMTree = xml.dom.minidom.parse(path)
+            collection = DOMTree.documentElement
+            PlayControl = collection.getElementsByTagName("PlayControl")
+
+            #热点checked
+            DefaultBitmap = PlayControl.getElementsByTagName("DefaultBitmap")
+
+
+            #默认列表checked
+            DefaultProgramme = PlayControl.getElementsByTagName("DefaultProgramme")
+
+            #播放列表checked
+            Programme = PlayControl.getElementsByTagName("Programme")
+
+
         return result
 
     def lineStationXmlCheck(self,result,path,failMsgs):
@@ -193,15 +220,33 @@ class MediaPackageCheck:
         return result
 
 
-    def mediaXmlCheck(self,result,path,failMsgs):
+    def mediaXmlCheck(self,result,path,failMsgs,rootPath):
 
         if (not os.path.exists(path)):
             result = "[fail]"
             failMsgs.append(
                 "[ERROR: %s，not exists!]" % path)
         else:
-            print()
-            # TODO
+            # 使用minidom解析器打开 XML 文档
+            DOMTree = xml.dom.minidom.parse(path)
+            collection = DOMTree.documentElement
+            mediaList = collection.getElementsByTagName("Media")
+            for media in mediaList:
+                if(
+                        media.hasAttribute("id") and
+                        media.hasAttribute("name") and
+                        media.hasAttribute("path") and
+                        media.hasAttribute("validateKey")):
+                    if not os.path.exists(rootPath+os.sep+"source"+os.sep+media.getAttribute("path")):
+                        result = "[fail]"
+                        failMsgs.append(
+                            "[ERROR:%s 中, %s，not exists!]" % (path,rootPath+os.sep+"source"+os.sep+media.getAttribute("path")))
+                    #文件校验码校验
+                    else:
+                        path = rootPath+os.sep+"source"+os.sep+media.getAttribute("path")
+                        validateKey = media.getAttribute("validateKey")
+                        print("path : %s ,vilidateKey: %s . checked" % (path,validateKey))
+                        #TODO
         return result
 
 
