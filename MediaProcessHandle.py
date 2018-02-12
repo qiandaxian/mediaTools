@@ -23,12 +23,9 @@ class PackageSoueceHandle(xml.sax.ContentHandler):
     def startElement(self, name, attrs):
         if name == "Source":
 
-            self.savePath = attrs["savePath"]
-            self.url = attrs["url"]
-
             obj = {}
-            obj["savePath"] = self.rootPath+os.sep+"source"+os.sep+attrs["savePath"]
-            obj["url"] = attrs["url"]
+            obj["savePath"] = (self.rootPath+os.sep+"source"+os.sep+attrs["savePath"]).replace("\\",os.path.sep).replace("/",os.path.sep)
+            obj["url"] = attrs["url"].replace("\\",os.path.sep).replace("/",os.path.sep)
 
             self.objs.append(obj)
 
@@ -193,18 +190,28 @@ class MediaPackageCheck:
         else:
             DOMTree = xml.dom.minidom.parse(path)
             collection = DOMTree.documentElement
-            PlayControl = collection.getElementsByTagName("PlayControl")
-
             #热点checked
-            DefaultBitmap = PlayControl.getElementsByTagName("DefaultBitmap")
 
+            if len(collection.getElementsByTagName("BitmapResources")) != 2:
+                result = "[fail]"
+                failMsgs.append(
+                    "[ERROR: %s，DefaultBitmap node size error!]" % path)
 
             #默认列表checked
-            DefaultProgramme = PlayControl.getElementsByTagName("DefaultProgramme")
+            defaultProgramme = collection.getElementsByTagName("DefaultProgramme")
+            if len(defaultProgramme)==1:
+                defaultPlan =  defaultProgramme[0].getElementsByTagName("Plan")
+                if len(defaultPlan)!=4:
+                    result = "[fail]"
+                    failMsgs.append(
+                        "[ERROR: %s，DefaultProgramme Plan node size error!]" % path)
+            else:
+                result = "[fail]"
+                failMsgs.append(
+                    "[ERROR: %s，DefaultProgramme size error!]" % path)
 
             #播放列表checked
-            Programme = PlayControl.getElementsByTagName("Programme")
-
+            # programme = collection.getElementsByTagName("Programme")
 
         return result
 
@@ -237,15 +244,15 @@ class MediaPackageCheck:
                         media.hasAttribute("name") and
                         media.hasAttribute("path") and
                         media.hasAttribute("validateKey")):
-                    if not os.path.exists(rootPath+os.sep+"source"+os.sep+media.getAttribute("path")):
+                    filePath = (rootPath+os.sep+"source"+os.sep+media.getAttribute("path")).replace("\\",os.path.sep).replace("/",os.path.sep)
+                    if not os.path.exists(filePath):
                         result = "[fail]"
                         failMsgs.append(
-                            "[ERROR:%s 中, %s，not exists!]" % (path,rootPath+os.sep+"source"+os.sep+media.getAttribute("path")))
+                            "[ERROR:%s 中, %s，not exists!]" % (path,filePath))
                     #文件校验码校验
                     else:
-                        path = rootPath+os.sep+"source"+os.sep+media.getAttribute("path")
                         validateKey = media.getAttribute("validateKey")
-                        print("path : %s ,vilidateKey: %s . checked" % (path,validateKey))
+                        print("path : %s ,vilidateKey: %s . checked" % (filePath,validateKey))
                         #TODO
         return result
 

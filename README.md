@@ -25,3 +25,12 @@
 - ui：pyqt5
 - xml解析：xml.sax
 - 其他：os，urllib3等
+
+未完成
+--
+- 媒体文件校验码校验
+- author文件校验
+- lines.xml校验
+- source.xml校验
+- control.xml媒体id对应文件是否存在校验
+- 线路文件校验

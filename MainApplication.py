@@ -9,6 +9,7 @@ from mainwindow import Ui_MainWindow
 import MediaProcessHandle
 import os
 import shutil
+import re
 
 #媒体文件夹处理类型
 packageProcesType = 0
@@ -58,15 +59,16 @@ class mywindow(QtWidgets.QMainWindow,Ui_MainWindow):
         fileName = QtWidgets.QFileDialog.getExistingDirectory(self,
                                                                     "选取文件",
                                                                     "")
+
         if(len(fileName) != 0):
-            self.le_package_path.setText(fileName)
+            self.le_package_path.setText(fileName.replace("\\",os.path.sep).replace("/",os.path.sep))
 
     def selectLineXmlPath(self):
         fileName,type = QtWidgets.QFileDialog.getOpenFileName(self,
                                                                     "选取文件",
                                                                     "","Xml Files (*.xml)")
         if(len(fileName) != 0):
-            self.le_line_xml_path.setText(fileName)
+            self.le_line_xml_path.setText(fileName.replace("\\",os.path.sep).replace("/",os.path.sep))
 
     def packageProcesStart(self):
         self.pte_log.clear()
@@ -98,7 +100,6 @@ class mywindow(QtWidgets.QMainWindow,Ui_MainWindow):
         xmlProcesProtocolType = self.cb_protocol_type.currentIndex()
 
     def packageProcesByType(self,rootPath):
-
         #媒体资源下载
         if packageProcesType == 0:
             self.thread = Runthread(rootPath)
@@ -114,11 +115,14 @@ class mywindow(QtWidgets.QMainWindow,Ui_MainWindow):
                 fileList = os.listdir(rootPath)
                 for deviceDir in fileList:
                     if (deviceDir != "source"):
-                        pathTmp = os.path.join(rootPath, deviceDir)+os.sep+"app"
-                        if not os.path.exists(pathTmp):
-                            os.mkdir(pathTmp)
-                        shutil.copyfile(fileName,pathTmp+os.sep+os.path.basename(fileName))
-                        self.pte_log.appendPlainText("拷贝文件："+fileName+",到："+pathTmp+os.sep+os.path.basename(fileName))
+                        if re.match('^[0-9A-z]+$', deviceDir):
+                            pathTmp = os.path.join(rootPath, deviceDir)+os.sep+"app"
+                            if not os.path.exists(pathTmp):
+                                os.mkdir(pathTmp)
+                            shutil.copyfile(fileName,pathTmp+os.sep+os.path.basename(fileName))
+                            self.pte_log.appendPlainText("设备【" + deviceDir + "】\tcopy\t [success]")
+                        else:
+                            self.pte_log.appendPlainText("[ERROR,目录: %s 名称不合法]" % deviceDir)
                 self.pte_log.appendPlainText("拷贝完成！")
 
         elif packageProcesType == 2:
@@ -151,15 +155,19 @@ class mywindow(QtWidgets.QMainWindow,Ui_MainWindow):
             else:
                 self.pte_log.appendPlainText("资源文件【source】\t\t\tchecked\t[fail]")
                 return
+
             # 2.设备文件夹校验
             for dirName in fileList:
                 if (dirName != "source"):
-                    packageCheck = MediaProcessHandle.MediaPackageCheck()
-                    result,failMsgs = packageCheck.deviceDirCheck(rootPath+os.sep+dirName)
-                    self.pte_log.appendPlainText("设备【"+dirName+"】\t\tchecked\t"+result)
-                    if (result == "[fail]"):
-                        for failMsg in failMsgs:
-                            self.pte_log.appendPlainText(failMsg)
+                    if re.match('^[0-9A-z]+$', dirName):
+                        packageCheck = MediaProcessHandle.MediaPackageCheck()
+                        result,failMsgs = packageCheck.deviceDirCheck(rootPath+os.sep+dirName)
+                        self.pte_log.appendPlainText("设备【"+dirName+"】\t\tchecked\t"+result)
+                        if (result == "[fail]"):
+                            for failMsg in failMsgs:
+                                self.pte_log.appendPlainText(failMsg)
+                    else:
+                        self.pte_log.appendPlainText("[ERROR:目录 %s 文件名不合法！]" % dirName)
 
             self.pte_log.appendPlainText("FINISH!")
         elif packageProcesType in (3,4,5,6,7,8,9):

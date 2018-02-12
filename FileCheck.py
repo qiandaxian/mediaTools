@@ -38,12 +38,16 @@ def shasum(filename):
     f.close()
     return myhash.hexdigest().upper()
 
+import re
 
-
-f = md5sum("/Users/qiandaxian/Downloads/1.4.0.apk")
-print(f)
-f2 = shasum("/Users/qiandaxian/Downloads/1.4.0.apk")
-print(f2)
-
+s='080E91D4EA9A2B91'
+if re.match('^[0-9A-z]+$',s):
+    print("yes")
+else:
+    print("false")
+# f = md5sum("/Users/qiandaxian/Downloads/1.4.0.apk")
+# print(f)
+# f2 = shasum("/Users/qiandaxian/Downloads/1.4.0.apk")
+# print(f2)
 
 
